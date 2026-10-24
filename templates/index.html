@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>CreditGuard | Prediksi Risiko Gagal Bayar</title>
+
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+    >
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/style.css') }}"
+    >
+</head>
+
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="/">
+                CreditGuard
+            </a>
+
+            <span class="navbar-text text-white">
+                Prediksi Risiko Kredit
+            </span>
+        </div>
+    </nav>
+
+    <header class="hero-section">
+        <div class="container">
+            <div class="hero-content">
+                <span class="badge rounded-pill text-bg-light mb-3">
+                    MACHINE LEARNING · REGRESI LOGISTIK
+                </span>
+
+                <h1>Prediksi Risiko Gagal Bayar Kartu Kredit</h1>
+
+                <p>
+                    Masukkan informasi pelanggan untuk memperoleh prediksi
+                    kelas risiko berdasarkan model machine learning.
+                </p>
+
+                <div class="model-badge">
+                    Model aktif: {{ model_name }}
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="container main-content">
+        <div class="row g-4">
+
+            <div class="col-lg-8">
+                <section class="card form-card">
+                    <div class="card-header-custom">
+                        <div>
+                            <span class="section-label">FORMULIR PREDIKSI</span>
+                            <h2>Data Pelanggan</h2>
+                            <p>
+                                Lengkapi seluruh kolom dengan data yang sesuai.
+                            </p>
+                        </div>
+                    </div>
+
+                    {% if error %}
+                    <div class="alert alert-danger mx-4 mt-3" role="alert">
+                        {{ error }}
+                    </div>
+                    {% endif %}
+
+                    <form method="POST" action="/" id="predictionForm">
+                        <div class="form-section">
+                            <h3>01. Informasi Dasar</h3>
+
+                            <div class="row g-3">
+                                {% for field in form_fields %}
+                                <div class="col-md-6">
+                                    <label
+                                        for="{{ field.name }}"
+                                        class="form-label"
+                                    >
+                                        {{ field.label }}
+                                    </label>
+
+                                    {% if field.type == "select" %}
+                                    <select
+                                        class="form-select"
+                                        id="{{ field.name }}"
+                                        name="{{ field.name }}"
+                                        required
+                                    >
+                                        {% for value, label in field.options %}
+                                        <option
+                                            value="{{ value }}"
+                                            {% if submitted_data.get(field.name, field.default) == value %}
+                                            selected
+                                            {% endif %}
+                                        >
+                                            {{ label }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    {% else %}
+                                    <input
+                                        class="form-control"
+                                        type="{{ field.type }}"
+                                        id="{{ field.name }}"
+                                        name="{{ field.name }}"
+                                        value="{{ submitted_data.get(field.name, field.default) }}"
+                                        min="{{ field.min | default('') }}"
+                                        max="{{ field.max | default('') }}"
+                                        step="{{ field.step | default('any') }}"
+                                        required
+                                    >
+                                    {% endif %}
+
+                                    {% if field.help %}
+                                    <div class="form-text">
+                                        {{ field.help }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <h3>02. Riwayat Pembayaran</h3>
+
+                            <p class="section-description">
+                                Masukkan kode status pembayaran sesuai dataset.
+                            </p>
+
+                            <div class="row g-3">
+                                {% for name, label, default in payment_fields %}
+                                <div class="col-md-6">
+                                    <label
+                                        for="{{ name }}"
+                                        class="form-label"
+                                    >
+                                        {{ label }}
+                                    </label>
+
+                                    <input
+                                        type="number"
+                                        class="form-control"
+                                        id="{{ name }}"
+                                        name="{{ name }}"
+                                        value="{{ submitted_data.get(name, default) }}"
+                                        step="1"
+                                        min="-2"
+                                        max="8"
+                                        required
+                                    >
+                                </div>
+                                {% endfor %}
+                            </div>
+
+                            <div class="info-note mt-3">
+                                Gunakan kode sesuai dataset pelatihan.
+                                Jangan mengartikan kode sebagai jumlah hari
+                                keterlambatan tanpa merujuk dokumentasi dataset.
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <h3>03. Jumlah Tagihan</h3>
+
+                            <p class="section-description">
+                                Nilai tagihan dalam mata uang dataset (NT$).
+                            </p>
+
+                            <div class="row g-3">
+                                {% for name, label, default in bill_fields %}
+                                <div class="col-md-6">
+                                    <label
+                                        for="{{ name }}"
+                                        class="form-label"
+                                    >
+                                        {{ label }}
+                                    </label>
+
+                                    <input
+                                        type="number"
+                                        class="form-control"
+                                        id="{{ name }}"
+                                        name="{{ name }}"
+                                        value="{{ submitted_data.get(name, default) }}"
+                                        step="any"
+                                        required
+                                    >
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <h3>04. Jumlah Pembayaran</h3>
+
+                            <p class="section-description">
+                                Masukkan jumlah pembayaran pada setiap periode.
+                            </p>
+
+                            <div class="row g-3">
+                                {% for name, label, default in amount_fields %}
+                                <div class="col-md-6">
+                                    <label
+                                        for="{{ name }}"
+                                        class="form-label"
+                                    >
+                                        {{ label }}
+                                    </label>
+
+                                    <input
+                                        type="number"
+                                        class="form-control"
+                                        id="{{ name }}"
+                                        name="{{ name }}"
+                                        value="{{ submitted_data.get(name, default) }}"
+                                        min="0"
+                                        step="any"
+                                        required
+                                    >
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button
+                                type="submit"
+                                class="btn btn-primary btn-lg w-100"
+                                id="predictButton"
+                            >
+                                Prediksi Risiko Gagal Bayar
+                            </button>
+
+                            <button
+                                type="reset"
+                                class="btn btn-outline-secondary w-100 mt-2"
+                                id="resetButton"
+                            >
+                                Reset Formulir
+                            </button>
+                        </div>
+                    </form>
+                </section>
+            </div>
+
+            <div class="col-lg-4">
+                <aside class="result-card">
+                    <span class="section-label">HASIL ANALISIS</span>
+                    <h2>Hasil Prediksi</h2>
+
+                    {% if prediction %}
+                    <div class="prediction-result {{ prediction.status }}">
+                        <div class="result-icon">
+                            {% if prediction.class == 1 %}
+                                !
+                            {% else %}
+                                ✓
+                            {% endif %}
+                        </div>
+
+                        <h3>{{ prediction.title }}</h3>
+
+                        <p>{{ prediction.description }}</p>
+
+                        <div class="probability-box">
+                            <span>Probabilitas gagal bayar</span>
+
+                            <strong>
+                                {{ "%.2f"|format(probability) }}%
+                            </strong>
+
+                            <div class="progress mt-2" role="progressbar"
+                                 aria-label="Probabilitas gagal bayar"
+                                 aria-valuenow="{{ probability }}"
+                                 aria-valuemin="0"
+                                 aria-valuemax="100">
+                                <div
+                                    class="progress-bar"
+                                    style="width: {{ probability }}%"
+                                ></div>
+                            </div>
+                        </div>
+
+                        <div class="class-info">
+                            <span>Kelas prediksi</span>
+                            <strong>{{ prediction.class }}</strong>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="empty-result">
+                        <div class="empty-icon">↗</div>
+
+                        <h3>Belum Ada Prediksi</h3>
+
+                        <p>
+                            Isi formulir di sebelah kiri, lalu tekan tombol
+                            prediksi untuk melihat hasil analisis.
+                        </p>
+                    </div>
+                    {% endif %}
+
+                    <div class="disclaimer">
+                        <strong>Catatan penting</strong>
+                        <p>
+                            Hasil ini merupakan prediksi model berdasarkan
+                            pola data historis, bukan keputusan kredit
+                            atau kepastian bahwa pelanggan akan gagal bayar.
+                            Jangan gunakan hasil ini sebagai satu-satunya
+                            dasar keputusan keuangan nyata.
+                        </p>
+                    </div>
+                </aside>
+
+                <aside class="info-card mt-4">
+                    <h3>Interpretasi Kelas</h3>
+
+                    <div class="legend-item">
+                        <span class="legend-dot green"></span>
+                        <div>
+                            <strong>Kelas 0</strong>
+                            <p>Tidak gagal bayar menurut prediksi model.</p>
+                        </div>
+                    </div>
+
+                    <div class="legend-item">
+                        <span class="legend-dot red"></span>
+                        <div>
+                            <strong>Kelas 1</strong>
+                            <p>Gagal bayar menurut prediksi model.</p>
+                        </div>
+                    </div>
+                </aside>
+            </div>
+
+        </div>
+
+        <footer class="footer">
+            <p>
+                CreditGuard · Implementasi Regresi Logistik dengan Flask
+            </p>
+            <p>Proyek Pembelajaran Machine Learning</p>
+        </footer>
+    </main>
+
+    <script
+        src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+    ></script>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
